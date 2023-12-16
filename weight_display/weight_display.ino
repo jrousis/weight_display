@@ -13,6 +13,7 @@
 #define PIXELS_DOWN	16      //pixels down y axis
 #define DRIVER_PIN_EN 26
 #define PHOTO_SAMPLES 60
+#define DISPLAY_LAST_DELAY 10000
 #define PHOTO_SAMPLE_DELAY 1000
 #define LED 13
 
@@ -36,12 +37,13 @@ const char Company2[] = { "Systems " };
 const char Device1[] = { "Weight  " };
 const char Device2[] = { "Display " };
 const char Version1[] = { "2X8 Char" };
-const char Version2[] = { "V.1.1   " };
+const char Version2[] = { "V.1.2   " };
 const char Init_start[] = { "Ready.." };
 
 static char  receive_packet[32] = { 0 };
 static uint8_t count = 0;
 unsigned long time_delay = 0;
+unsigned long display_delay = 0;
 
 //RousisMatrix16 myLED(PIXELS_X, PIXELS_Y, 12, 14, 27, 26, 25, 33); 
 RousisMatrix16 myLED(PIXELS_X, PIXELS_Y, 12, 14, 27, 26, 25, 33);
@@ -71,7 +73,6 @@ void IRAM_ATTR FlashInt()
 {
     portENTER_CRITICAL_ISR(&falshMux);
     //Photo_sample();
-
     portEXIT_CRITICAL_ISR(&falshMux);
 
 }
@@ -94,7 +95,8 @@ void setup()
     timerAttachInterrupt(timer, &onTime, true);
     Serial.println("Initialize LED matrix display");
     // Sets an alarm to sound every second
-    timerAlarmWrite(timer, 10000, true);
+    timerAlarmWrite(timer, 2500, true); //2500
+    //timerAlarmWrite(timer, 10000, true);
     timerAlarmEnable(timer);
 
     uint8_t cpuClock = ESP.getCpuFreqMHz();
@@ -142,6 +144,7 @@ void setup()
 
     Serial.println("Finished Initilising");
     time_delay = millis();
+    display_delay = millis();
 }
 
 // Add the main program code into the continuous loop() function
@@ -166,6 +169,7 @@ void loop()
             }
             buf1[8] = 0; buf2[8] = 0;
             //myLED.clearDisplay();
+            display_delay = millis();
             myLED.drawString(0, 0, buf1, CHAR_PER_LINE, 1);
             myLED.drawString(0, 9, buf2, CHAR_PER_LINE, 1);            
             
@@ -184,6 +188,12 @@ void loop()
         else {
             receive_packet[count++] = get_byte;
         }
+    }
+
+    if ((millis() - display_delay) > DISPLAY_LAST_DELAY)
+    {
+        myLED.clearDisplay();
+        display_delay = millis();
     }
 
     if ((millis() - time_delay) > PHOTO_SAMPLE_DELAY)
