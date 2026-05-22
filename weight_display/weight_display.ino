@@ -95,7 +95,7 @@ void setup()
     timerAttachInterrupt(timer, &onTime, true);
     Serial.println("Initialize LED matrix display");
     // Sets an alarm to sound every second
-    timerAlarmWrite(timer, 2500, true); //2500
+    timerAlarmWrite(timer, 5000, true); //2500
     //timerAlarmWrite(timer, 10000, true);
     timerAlarmEnable(timer);
 
