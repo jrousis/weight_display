@@ -5,26 +5,29 @@
     Created:	28/11/2023 7:36:02 μμ
     Author:     ROUSIS_FACTORY\user
 */
-#define PIXELS_X 48
-#define PIXELS_Y 16
+//#define PIXELS_X 48
+//#define PIXELS_Y 16
+#define MODULE_X 3
+#define MODULE_Y 1
+#define SCAN_TYPE STATIC_SCAN
+#define PIXELS_X (MODULE_X * 16)
+#define PIXELS_Y (MODULE_Y * 16)
+
 #define CHAR_PER_LINE 8
 #define TOTAL_CHAR 16
-#define PIXELS_ACROSS 128      //pixels across x axis (base 2 size expected)
-#define PIXELS_DOWN	16      //pixels down y axis
+//#define PIXELS_ACROSS 128      //pixels across x axis (base 2 size expected)
+//#define PIXELS_DOWN	16      //pixels down y axis
 #define DRIVER_PIN_EN 26
 #define PHOTO_SAMPLES 60
 #define DISPLAY_LAST_DELAY 10000
 #define PHOTO_SAMPLE_DELAY 1000
 #define LED 13
 
-#define FLR_TRAFFIC 0
-#define FLR_LEFT_SLIDE_SPEED 32
-#define FLR_SLIDE_STEPS 21
-
-#include <RousisMatrix16.h>
+//#include <RousisMatrix16.h>
+#include <RousisMatrix16_Static.h>
 #include <fonts/SystemFont5x7_greek.h>
 
-const int photoPin = 39;
+const int photoPin = 36;
 // variable for storing the potentiometer value
 uint8_t photoValue = 0;
 uint8_t brightness = 255;
@@ -37,7 +40,7 @@ const char Company2[] = { "Systems " };
 const char Device1[] = { "Weight  " };
 const char Device2[] = { "Display " };
 const char Version1[] = { "2X8 Char" };
-const char Version2[] = { "V.1.2   " };
+const char Version2[] = { "V.2.1   " };
 const char Init_start[] = { "Ready.." };
 
 static char  receive_packet[32] = { 0 };
@@ -45,8 +48,9 @@ static uint8_t count = 0;
 unsigned long time_delay = 0;
 unsigned long display_delay = 0;
 
-//RousisMatrix16 myLED(PIXELS_X, PIXELS_Y, 12, 14, 27, 26, 25, 33); 
-RousisMatrix16 myLED(PIXELS_X, PIXELS_Y, 12, 14, 27, 26, 25, 33);
+//RousisMatrix16 myLED(PIXELS_X, PIXELS_Y, 12, 14, 27, 26, 25, 33);
+RousisMatrix16_Static myLED(MODULE_X, MODULE_Y);    // Uncomment if not using OE pin
+
 
 #define RXD2 16
 #define TXD2 17
@@ -61,13 +65,13 @@ hw_timer_t* flash_timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE falshMux = portMUX_INITIALIZER_UNLOCKED;
 // Code with critica section
-void IRAM_ATTR onTime() {
-    portENTER_CRITICAL_ISR(&timerMux);
-    myLED.scanDisplay();
-    //digitalWrite (LED_PIN, !digitalRead(LED_PIN)) ;
-    
-    portEXIT_CRITICAL_ISR(&timerMux);
-}
+//void IRAM_ATTR onTime() {
+//    portENTER_CRITICAL_ISR(&timerMux);
+//    myLED.scanDisplay();
+//    //digitalWrite (LED_PIN, !digitalRead(LED_PIN)) ;
+//    
+//    portEXIT_CRITICAL_ISR(&timerMux);
+//}
 
 void IRAM_ATTR FlashInt()
 {
@@ -87,17 +91,19 @@ void setup()
     pinMode(LED, OUTPUT);
     digitalWrite(LED, LOW);
     delay(100);
+    while (!Serial) {};
 
     myLED.displayEnable();     // This command has no effect if you aren't using OE pin
     myLED.selectFont(SystemFont5x7_greek); //font1
 
-    timer = timerBegin(0, 20, true);
-    timerAttachInterrupt(timer, &onTime, true);
     Serial.println("Initialize LED matrix display");
-    // Sets an alarm to sound every second
-    timerAlarmWrite(timer, 5000, true); //2500
-    //timerAlarmWrite(timer, 10000, true);
-    timerAlarmEnable(timer);
+
+    //timer = timerBegin(0, 20, true);
+    //timerAttachInterrupt(timer, &onTime, true);         
+    //// Sets an alarm to sound every second
+    //timerAlarmWrite(timer, 5000, true); //2500
+    ////timerAlarmWrite(timer, 10000, true);
+    //timerAlarmEnable(timer);
 
     uint8_t cpuClock = ESP.getCpuFreqMHz();
     flash_timer = timerBegin(1, cpuClock, true);
@@ -127,20 +133,22 @@ void setup()
     Serial.print("First sample brightness: ");
     Serial.println(brightness);
 
-    myLED.clearDisplay();
+    /*myLED.clearDisplay();
     myLED.drawFilledBox(0, 0, PIXELS_X - 1, 15, GRAPHICS_ON);
-    delay(2000);
+    delay(2000);*/
     myLED.clearDisplay();
     myLED.drawString(0, 0, Company1, CHAR_PER_LINE, 1);
     myLED.drawString(0, 9, Company2, CHAR_PER_LINE, 1);
+    myLED.scanDisplay();
     delay(1000);
     myLED.clearDisplay();
     myLED.drawString(0, 0, Version1, CHAR_PER_LINE, 1);
     myLED.drawString(0, 9, Version2, CHAR_PER_LINE, 1);
+    myLED.scanDisplay();
     delay(1000);
     myLED.clearDisplay();
     myLED.drawString(0, 9, Init_start, sizeof(Init_start), 1);
-
+    myLED.scanDisplay();
 
     Serial.println("Finished Initilising");
     time_delay = millis();
@@ -172,7 +180,7 @@ void loop()
             display_delay = millis();
             myLED.drawString(0, 0, buf1, CHAR_PER_LINE, 1);
             myLED.drawString(0, 9, buf2, CHAR_PER_LINE, 1);            
-            
+            myLED.scanDisplay();
             Serial.println("Received packet: "); 
             Serial.println(receive_packet);
             Serial.println("______________________________");
@@ -193,12 +201,14 @@ void loop()
     if ((millis() - display_delay) > DISPLAY_LAST_DELAY)
     {
         myLED.clearDisplay();
+        myLED.scanDisplay();
         display_delay = millis();
     }
 
     if ((millis() - time_delay) > PHOTO_SAMPLE_DELAY)
     {
         Photo_sample();
+        myLED.scanDisplay();
         int state = digitalRead(LED);
         digitalWrite(LED, !state);
         time_delay = millis();
@@ -242,7 +252,7 @@ void Photo_sample() {
         sample_metter = 0;
         if (!brightness) { brightness = 10; }
         myLED.displayBrightness(brightness);
-
+        myLED.scanDisplay();
         Serial.println();
         Serial.print("New average brightness: ");
         Serial.println(brightness);
